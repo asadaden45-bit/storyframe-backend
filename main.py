@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI
 
 app = FastAPI(
@@ -13,4 +14,12 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.post("/stories")
+def create_story(prompt: str):
+    return {
+        "message": "Story received",
+        "prompt": prompt
+    }
+
 
