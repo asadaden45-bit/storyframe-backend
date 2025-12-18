@@ -15,11 +15,19 @@ def root():
 def health():
     return {"status": "ok"}
 
+from pydantic import BaseModel
+
+
+class StoryRequest(BaseModel):
+    prompt: str
+
+
 @app.post("/stories")
-def create_story(prompt: str):
+def create_story(request: StoryRequest):
     return {
         "message": "Story received",
-        "prompt": prompt
+        "prompt": request.prompt
     }
+
 
 
