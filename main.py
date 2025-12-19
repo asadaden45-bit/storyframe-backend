@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from story_generator import generate_story
 
 
 app = FastAPI(
@@ -8,8 +9,6 @@ app = FastAPI(
 )
 
 
-def generate_story(prompt: str) -> str:
-    return f"Once upon a time, {prompt}. And they lived happily ever after."
 
 
 class StoryRequest(BaseModel):
