@@ -15,9 +15,14 @@ class StoryRequest(BaseModel):
     prompt: str
 
 
+class StoryResponse(BaseModel):
+    story: str
+
+
 @app.get("/")
 def root():
     return {"status": "StoryFrame backend is running"}
+
 
 
 @app.get("/health")
@@ -25,7 +30,7 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/stories")
+@app.post("/stories", response_model=StoryResponse)
 def create_story(request: StoryRequest):
     story = generate_story(request.prompt)
     return {
