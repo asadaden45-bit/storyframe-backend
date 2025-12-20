@@ -1,7 +1,7 @@
 from time import time
 from typing import Dict
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Header
 from pydantic import BaseModel
 
 from story_generator import generate_story
@@ -14,18 +14,24 @@ app = FastAPI(
 
 
 ALLOWED_STYLES = {"default", "dark", "kids"}
-
 RATE_LIMIT_WINDOW = 60  # seconds
 RATE_LIMIT_MAX_REQUESTS = 10
 
 client_requests: Dict[str, list] = {}
 
 
+def verify_app_header(x_storyframe_app: str | None) -> None:
+    if x_storyframe_app != "android":
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized client",
+        )
+
+
 def check_rate_limit(client_id: str) -> None:
     now = time()
     requests = client_requests.get(client_id, [])
 
-    # keep only requests inside the window
     requests = [t for t in requests if now - t < RATE_LIMIT_WINDOW]
 
     if len(requests) >= RATE_LIMIT_MAX_REQUESTS:
@@ -58,7 +64,13 @@ def health():
 
 
 @app.post("/stories", response_model=StoryResponse)
-def create_story(request: StoryRequest, http_request: Request):
+def create_story(
+    request: StoryRequest,
+    http_request: Request,
+    x_storyframe_app: str = Header(..., alias="x-storyframe-app"),
+):
+    verify_app_header(x_storyframe_app)
+
     client_ip = http_request.client.host
     check_rate_limit(client_ip)
 
@@ -70,4 +82,9 @@ def create_story(request: StoryRequest, http_request: Request):
 
     story = generate_story(request.prompt, request.style)
     return {"story": story}
+
+
+    story = generate_story(request.prompt, request.style)
+    return {"story": story}
+
 
