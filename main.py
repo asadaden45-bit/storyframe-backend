@@ -1,7 +1,13 @@
 from time import time
 from typing import Dict
 
-from fastapi import FastAPI, HTTPException, Request, Header
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Request,
+    Header,
+    Depends,
+)
 from pydantic import BaseModel
 
 from story_generator import generate_story
@@ -13,14 +19,25 @@ app = FastAPI(
 )
 
 
+# ─────────────────────────────────────
+# Configuration
+# ─────────────────────────────────────
+
 ALLOWED_STYLES = {"default", "dark", "kids"}
+
 RATE_LIMIT_WINDOW = 60  # seconds
 RATE_LIMIT_MAX_REQUESTS = 10
 
 client_requests: Dict[str, list] = {}
 
 
-def verify_app_header(x_storyframe_app: str | None) -> None:
+# ─────────────────────────────────────
+# Security & Limits
+# ─────────────────────────────────────
+
+def require_android_app(
+    x_storyframe_app: str = Header(..., alias="x-storyframe-app"),
+) -> None:
     if x_storyframe_app != "android":
         raise HTTPException(
             status_code=403,
@@ -32,6 +49,7 @@ def check_rate_limit(client_id: str) -> None:
     now = time()
     requests = client_requests.get(client_id, [])
 
+    # Keep only requests inside the window
     requests = [t for t in requests if now - t < RATE_LIMIT_WINDOW]
 
     if len(requests) >= RATE_LIMIT_MAX_REQUESTS:
@@ -44,6 +62,10 @@ def check_rate_limit(client_id: str) -> None:
     client_requests[client_id] = requests
 
 
+# ─────────────────────────────────────
+# Models
+# ─────────────────────────────────────
+
 class StoryRequest(BaseModel):
     prompt: str
     style: str = "default"
@@ -52,6 +74,10 @@ class StoryRequest(BaseModel):
 class StoryResponse(BaseModel):
     story: str
 
+
+# ─────────────────────────────────────
+# Routes
+# ─────────────────────────────────────
 
 @app.get("/")
 def root():
@@ -67,10 +93,8 @@ def health():
 def create_story(
     request: StoryRequest,
     http_request: Request,
-    x_storyframe_app: str = Header(..., alias="x-storyframe-app"),
+    _: None = Depends(require_android_app),
 ):
-    verify_app_header(x_storyframe_app)
-
     client_ip = http_request.client.host
     check_rate_limit(client_ip)
 
@@ -82,9 +106,4 @@ def create_story(
 
     story = generate_story(request.prompt, request.style)
     return {"story": story}
-
-
-    story = generate_story(request.prompt, request.style)
-    return {"story": story}
-
 
