@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+
 from story_generator import generate_story
 
 
@@ -9,10 +10,9 @@ app = FastAPI(
 )
 
 
-
-
 class StoryRequest(BaseModel):
     prompt: str
+    style: str = "default"
 
 
 class StoryResponse(BaseModel):
@@ -24,7 +24,6 @@ def root():
     return {"status": "StoryFrame backend is running"}
 
 
-
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -32,11 +31,6 @@ def health():
 
 @app.post("/stories", response_model=StoryResponse)
 def create_story(request: StoryRequest):
-    story = generate_story(request.prompt)
-    return {
-        "story": story
-    }
-
-
-
+    story = generate_story(request.prompt, request.style)
+    return {"story": story}
 
