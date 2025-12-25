@@ -40,18 +40,16 @@ STORYFRAME_APP_KEY = os.getenv("STORYFRAME_APP_KEY", "").strip()
 
 client_requests: Dict[str, List[float]] = {}
 
-
 # ─────────────────────────────────────
 # Security & Limits
 # ─────────────────────────────────────
 
+
 def require_android_app(
     x_storyframe_app: str = Header(..., alias="x-storyframe-app"),
 ) -> None:
-    # Allow BOTH during transition:
-    # 1) old value "android"
-    # 2) secret key from STORYFRAME_APP_KEY env var
-    allowed = {"android"}
+    # Require the secret key (production-safe).
+    allowed = set()
     if STORYFRAME_APP_KEY:
         allowed.add(STORYFRAME_APP_KEY)
 
@@ -89,6 +87,7 @@ def check_rate_limit(client_id: str) -> None:
 # Models
 # ─────────────────────────────────────
 
+
 class StoryRequest(BaseModel):
     prompt: str
     style: str = "default"
@@ -101,6 +100,7 @@ class StoryResponse(BaseModel):
 # ─────────────────────────────────────
 # Routes
 # ─────────────────────────────────────
+
 
 @app.get("/")
 def root():
