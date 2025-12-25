@@ -8,13 +8,14 @@ from pydantic import BaseModel
 
 from story_generator import generate_story
 
+
 app = FastAPI(
     title="StoryFrame Backend",
     version="0.1.0",
 )
 
 # CORS (for browser tests like CodePen)
-# IMPORTANT: allow_credentials=False so allow_origins=["*"] works correctly.
+# IMPORTANT: allow_credentials must be False if allow_origins uses specific sites or "*".
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -35,21 +36,21 @@ ALLOWED_STYLES = {"default", "dark", "kids"}
 RATE_LIMIT_WINDOW = 60  # seconds
 RATE_LIMIT_MAX_REQUESTS = 10
 
-STORYFRAME_APP_KEY = os.getenv("STORYFRAME_APP_KEY", "")
+STORYFRAME_APP_KEY = os.getenv("STORYFRAME_APP_KEY", "").strip()
 
 client_requests: Dict[str, List[float]] = {}
+
 
 # ─────────────────────────────────────
 # Security & Limits
 # ─────────────────────────────────────
 
-
 def require_android_app(
     x_storyframe_app: str = Header(..., alias="x-storyframe-app"),
 ) -> None:
-    # During transition we allow BOTH:
-    # 1) old header value "android"
-    # 2) new secret key stored in env var STORYFRAME_APP_KEY
+    # Allow BOTH during transition:
+    # 1) old value "android"
+    # 2) secret key from STORYFRAME_APP_KEY env var
     allowed = {"android"}
     if STORYFRAME_APP_KEY:
         allowed.add(STORYFRAME_APP_KEY)
@@ -75,7 +76,10 @@ def check_rate_limit(client_id: str) -> None:
     timestamps = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW]
 
     if len(timestamps) >= RATE_LIMIT_MAX_REQUESTS:
-        raise HTTPException(status_code=429, detail="Too many requests. Please slow down.")
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests. Please slow down.",
+        )
 
     timestamps.append(now)
     client_requests[client_id] = timestamps
@@ -84,7 +88,6 @@ def check_rate_limit(client_id: str) -> None:
 # ─────────────────────────────────────
 # Models
 # ─────────────────────────────────────
-
 
 class StoryRequest(BaseModel):
     prompt: str
@@ -98,7 +101,6 @@ class StoryResponse(BaseModel):
 # ─────────────────────────────────────
 # Routes
 # ─────────────────────────────────────
-
 
 @app.get("/")
 def root():
