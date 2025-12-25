@@ -2,7 +2,7 @@ import os
 from time import time
 from typing import Dict, List
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -14,9 +14,9 @@ app = FastAPI(
     version="0.1.0",
 )
 
+
 # CORS (browser access)
-# - allow_credentials must be False when using "*" or a list of origins like this.
-# - Keep CodePen while testing, then remove it later.
+# Keep CodePen while testing; replace YOURDOMAIN.COM later.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -29,6 +29,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # ─────────────────────────────────────
 # Configuration
@@ -43,17 +44,16 @@ STORYFRAME_APP_KEY = os.getenv("STORYFRAME_APP_KEY", "").strip()
 
 client_requests: Dict[str, List[float]] = {}
 
+
 # ─────────────────────────────────────
 # Security & Limits
 # ─────────────────────────────────────
 
-
-def require_app_key(request: Request) -> None:
-    provided = (
-        request.headers.get("x-api-key")
-        or request.headers.get("x-storyframe-app")
-        or ""
-    ).strip()
+def require_app_key(
+    x_api_key: str | None = Header(None, alias="x-api-key"),
+    x_storyframe_app: str | None = Header(None, alias="x-storyframe-app"),
+) -> None:
+    provided = (x_api_key or x_storyframe_app or "").strip()
 
     if not STORYFRAME_APP_KEY or provided != STORYFRAME_APP_KEY:
         raise HTTPException(status_code=403, detail="Unauthorized client")
@@ -72,7 +72,6 @@ def check_rate_limit(client_id: str) -> None:
     now = time()
     timestamps = client_requests.get(client_id, [])
 
-    # Keep only requests inside the window
     timestamps = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW]
 
     if len(timestamps) >= RATE_LIMIT_MAX_REQUESTS:
@@ -89,7 +88,6 @@ def check_rate_limit(client_id: str) -> None:
 # Models
 # ─────────────────────────────────────
 
-
 class StoryRequest(BaseModel):
     prompt: str
     style: str = "default"
@@ -102,7 +100,6 @@ class StoryResponse(BaseModel):
 # ─────────────────────────────────────
 # Routes
 # ─────────────────────────────────────
-
 
 @app.get("/")
 def root():
