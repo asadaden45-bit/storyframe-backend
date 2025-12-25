@@ -1,3 +1,4 @@
+import os
 from time import time
 from typing import Dict, List
 
@@ -34,6 +35,8 @@ ALLOWED_STYLES = {"default", "dark", "kids"}
 RATE_LIMIT_WINDOW = 60  # seconds
 RATE_LIMIT_MAX_REQUESTS = 10
 
+STORYFRAME_APP_KEY = os.getenv("STORYFRAME_APP_KEY", "")
+
 client_requests: Dict[str, List[float]] = {}
 
 # ─────────────────────────────────────
@@ -44,12 +47,18 @@ client_requests: Dict[str, List[float]] = {}
 def require_android_app(
     x_storyframe_app: str = Header(..., alias="x-storyframe-app"),
 ) -> None:
-    if x_storyframe_app != "android":
+    # During transition we allow BOTH:
+    # 1) old header value "android"
+    # 2) new secret key stored in env var STORYFRAME_APP_KEY
+    allowed = {"android"}
+    if STORYFRAME_APP_KEY:
+        allowed.add(STORYFRAME_APP_KEY)
+
+    if x_storyframe_app not in allowed:
         raise HTTPException(status_code=403, detail="Unauthorized client")
 
 
 def get_client_ip(request: Request) -> str:
-    # Works behind proxies too (Render/Cloudflare may set this)
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         return forwarded.split(",")[0].strip()
@@ -66,10 +75,7 @@ def check_rate_limit(client_id: str) -> None:
     timestamps = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW]
 
     if len(timestamps) >= RATE_LIMIT_MAX_REQUESTS:
-        raise HTTPException(
-            status_code=429,
-            detail="Too many requests. Please slow down.",
-        )
+        raise HTTPException(status_code=429, detail="Too many requests. Please slow down.")
 
     timestamps.append(now)
     client_requests[client_id] = timestamps
