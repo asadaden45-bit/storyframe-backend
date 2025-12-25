@@ -14,13 +14,16 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# CORS (for browser tests like CodePen)
-# IMPORTANT: allow_credentials must be False if allow_origins uses specific sites or "*".
+# CORS (browser access)
+# - allow_credentials must be False when using "*" or a list of origins like this.
+# - Keep CodePen while testing, then remove it later.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://codepen.io",
         "https://cdpn.io",
+        "https://YOURDOMAIN.COM",
+        "https://www.YOURDOMAIN.COM",
     ],
     allow_credentials=False,
     allow_methods=["*"],
@@ -49,7 +52,8 @@ def require_android_app(
     x_storyframe_app: str = Header(..., alias="x-storyframe-app"),
 ) -> None:
     # Require the secret key (production-safe).
-    allowed = set()
+    # If the env var is missing, reject everything instead of accidentally allowing access.
+    allowed: set[str] = set()
     if STORYFRAME_APP_KEY:
         allowed.add(STORYFRAME_APP_KEY)
 
