@@ -7,7 +7,6 @@ from pydantic import BaseModel
 
 from story_generator import generate_story
 
-
 app = FastAPI(
     title="StoryFrame Backend",
     version="0.1.0",
@@ -17,12 +16,14 @@ app = FastAPI(
 # IMPORTANT: allow_credentials=False so allow_origins=["*"] works correctly.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://codepen.io",
+        "https://cdpn.io",
+    ],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # ─────────────────────────────────────
 # Configuration
@@ -35,10 +36,10 @@ RATE_LIMIT_MAX_REQUESTS = 10
 
 client_requests: Dict[str, List[float]] = {}
 
-
 # ─────────────────────────────────────
 # Security & Limits
 # ─────────────────────────────────────
+
 
 def require_android_app(
     x_storyframe_app: str = Header(..., alias="x-storyframe-app"),
@@ -65,7 +66,10 @@ def check_rate_limit(client_id: str) -> None:
     timestamps = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW]
 
     if len(timestamps) >= RATE_LIMIT_MAX_REQUESTS:
-        raise HTTPException(status_code=429, detail="Too many requests. Please slow down.")
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests. Please slow down.",
+        )
 
     timestamps.append(now)
     client_requests[client_id] = timestamps
@@ -74,6 +78,7 @@ def check_rate_limit(client_id: str) -> None:
 # ─────────────────────────────────────
 # Models
 # ─────────────────────────────────────
+
 
 class StoryRequest(BaseModel):
     prompt: str
@@ -87,6 +92,7 @@ class StoryResponse(BaseModel):
 # ─────────────────────────────────────
 # Routes
 # ─────────────────────────────────────
+
 
 @app.get("/")
 def root():
