@@ -2,7 +2,7 @@ import os
 from time import time
 from typing import Dict, List
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -48,16 +48,14 @@ client_requests: Dict[str, List[float]] = {}
 # ─────────────────────────────────────
 
 
-def require_android_app(
-    x_storyframe_app: str = Header(..., alias="x-storyframe-app"),
-) -> None:
-    # Require the secret key (production-safe).
-    # If the env var is missing, reject everything instead of accidentally allowing access.
-    allowed: set[str] = set()
-    if STORYFRAME_APP_KEY:
-        allowed.add(STORYFRAME_APP_KEY)
+def require_app_key(request: Request) -> None:
+    provided = (
+        request.headers.get("x-api-key")
+        or request.headers.get("x-storyframe-app")
+        or ""
+    ).strip()
 
-    if x_storyframe_app not in allowed:
+    if not STORYFRAME_APP_KEY or provided != STORYFRAME_APP_KEY:
         raise HTTPException(status_code=403, detail="Unauthorized client")
 
 
@@ -120,7 +118,7 @@ def health():
 def create_story(
     request: StoryRequest,
     http_request: Request,
-    _: None = Depends(require_android_app),
+    _: None = Depends(require_app_key),
 ):
     client_ip = get_client_ip(http_request)
     check_rate_limit(client_ip)
