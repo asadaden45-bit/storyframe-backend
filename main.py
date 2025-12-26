@@ -9,21 +9,20 @@ from pydantic import BaseModel
 
 from story_generator import generate_story
 
-
 app = FastAPI(
     title="StoryFrame Backend",
     version="0.1.0",
 )
 
 # CORS (browser access)
-# Keep CodePen while testing; replace YOURDOMAIN.COM later.
+# Keep CodePen while testing; include your production domains.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://codepen.io",
         "https://cdpn.io",
-        "https://YOURDOMAIN.COM",
-        "https://www.YOURDOMAIN.COM",
+        "https://storyframe.ai",
+        "https://www.storyframe.ai",
     ],
     allow_credentials=False,
     allow_methods=["*"],
@@ -35,7 +34,6 @@ app.add_middleware(
 # ─────────────────────────────────────
 
 ALLOWED_STYLES = {"default", "dark", "kids"}
-
 RATE_LIMIT_WINDOW = 60  # seconds
 RATE_LIMIT_MAX_REQUESTS = 10
 
@@ -53,7 +51,6 @@ def require_app_key(
     x_storyframe_app: str | None = Header(None, alias="x-storyframe-app"),
 ) -> None:
     provided = (x_api_key or x_storyframe_app or "").strip()
-
     if not STORYFRAME_APP_KEY or provided != STORYFRAME_APP_KEY:
         raise HTTPException(status_code=403, detail="Unauthorized client")
 
@@ -70,14 +67,10 @@ def get_client_ip(request: Request) -> str:
 def check_rate_limit(client_id: str) -> None:
     now = time()
     timestamps = client_requests.get(client_id, [])
-
     timestamps = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW]
 
     if len(timestamps) >= RATE_LIMIT_MAX_REQUESTS:
-        raise HTTPException(
-            status_code=429,
-            detail="Too many requests. Please slow down.",
-        )
+        raise HTTPException(status_code=429, detail="Too many requests. Please slow down.")
 
     timestamps.append(now)
     client_requests[client_id] = timestamps
@@ -125,10 +118,7 @@ def create_story(
     check_rate_limit(client_ip)
 
     if request.style not in ALLOWED_STYLES:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid style. Allowed: default, dark, kids",
-        )
+        raise HTTPException(status_code=400, detail="Invalid style. Allowed: default, dark, kids")
 
     story = generate_story(request.prompt, request.style)
     return {"story": story}
@@ -145,17 +135,15 @@ async def web_create_story(request: StoryRequest, http_request: Request):
     check_rate_limit(client_ip)
 
     if request.style not in ALLOWED_STYLES:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid style. Allowed: default, dark, kids",
-        )
+        raise HTTPException(status_code=400, detail="Invalid style. Allowed: default, dark, kids")
 
     if not STORYFRAME_APP_KEY:
         raise HTTPException(status_code=500, detail="Server missing STORYFRAME_APP_KEY")
 
+    base_url = str(http_request.base_url).rstrip("/")
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(
-            "https://storyframe-backend.onrender.com/stories",
+            f"{base_url}/stories",
             headers={"x-api-key": STORYFRAME_APP_KEY},
             json={"prompt": request.prompt, "style": request.style},
         )
@@ -164,3 +152,4 @@ async def web_create_story(request: StoryRequest, http_request: Request):
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     return resp.json()
+
