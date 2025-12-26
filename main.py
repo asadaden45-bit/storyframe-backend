@@ -1,4 +1,3 @@
-
 import os
 from time import time
 from typing import Dict, List
@@ -113,11 +112,14 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/stories", response_model=StoryResponse)
+@app.post(
+    "/stories",
+    response_model=StoryResponse,
+    dependencies=[Depends(require_app_key)],
+)
 def create_story(
     request: StoryRequest,
     http_request: Request,
-    _: None = Depends(require_app_key),
 ):
     client_ip = get_client_ip(http_request)
     check_rate_limit(client_ip)
