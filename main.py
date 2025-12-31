@@ -23,6 +23,7 @@ app.add_middleware(
         "https://cdpn.io",
         "https://storyframe.ai",
         "https://www.storyframe.ai",
+        "https://storyframe-frontend.pages.dev",
     ],
     allow_credentials=False,
     allow_methods=["*"],
@@ -40,6 +41,7 @@ RATE_LIMIT_MAX_REQUESTS = 10
 STORYFRAME_APP_KEY = os.getenv("STORYFRAME_APP_KEY", "").strip()
 
 client_requests: Dict[str, List[float]] = {}
+
 
 # ─────────────────────────────────────
 # Security & Limits
@@ -70,7 +72,10 @@ def check_rate_limit(client_id: str) -> None:
     timestamps = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW]
 
     if len(timestamps) >= RATE_LIMIT_MAX_REQUESTS:
-        raise HTTPException(status_code=429, detail="Too many requests. Please slow down.")
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests. Please slow down.",
+        )
 
     timestamps.append(now)
     client_requests[client_id] = timestamps
@@ -110,15 +115,15 @@ def health():
     response_model=StoryResponse,
     dependencies=[Depends(require_app_key)],
 )
-def create_story(
-    request: StoryRequest,
-    http_request: Request,
-):
+def create_story(request: StoryRequest, http_request: Request):
     client_ip = get_client_ip(http_request)
     check_rate_limit(client_ip)
 
     if request.style not in ALLOWED_STYLES:
-        raise HTTPException(status_code=400, detail="Invalid style. Allowed: default, dark, kids")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid style. Allowed: default, dark, kids",
+        )
 
     story = generate_story(request.prompt, request.style)
     return {"story": story}
@@ -135,7 +140,10 @@ async def web_create_story(request: StoryRequest, http_request: Request):
     check_rate_limit(client_ip)
 
     if request.style not in ALLOWED_STYLES:
-        raise HTTPException(status_code=400, detail="Invalid style. Allowed: default, dark, kids")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid style. Allowed: default, dark, kids",
+        )
 
     if not STORYFRAME_APP_KEY:
         raise HTTPException(status_code=500, detail="Server missing STORYFRAME_APP_KEY")
@@ -152,4 +160,3 @@ async def web_create_story(request: StoryRequest, http_request: Request):
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
 
     return resp.json()
-
